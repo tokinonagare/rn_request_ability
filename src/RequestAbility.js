@@ -60,7 +60,13 @@ export default class RequestAbility {
         return this._request('patch', { path, header, body, timeout });
     }
 
-    _request(method, { path, header, body, timeout }) {
+    _request(method, {
+        path,
+        header,
+        body,
+        timeout,
+        hasRetried = false,
+    }) {
         const axiosConfig = {
             baseURL: this.apiDomain,
             method,
@@ -89,6 +95,38 @@ export default class RequestAbility {
                     throw new ResponseError(error.message, 'timeout', path);
                 } else {
                     const { response } = error;
+                    const requestUrl = `${axiosConfig.baseURL || ''}${path}`;
+                    if (!hasRetried
+                        && error.message === 'Network Error'
+                        && typeof global.__LW_REFRESH_API_DOMAIN__ === 'function') {
+                        return global.__LW_REFRESH_API_DOMAIN__(this.apiDomain)
+                            .then((nextApiDomain) => {
+                                if (!nextApiDomain || nextApiDomain === this.apiDomain) {
+                                    throw error;
+                                }
+                                console.warn(`[RequestAbility] retry ${requestUrl} with ${nextApiDomain}`);
+                                this.setApiDomain(nextApiDomain);
+                                return this._request(method, {
+                                    path,
+                                    header,
+                                    body,
+                                    timeout,
+                                    hasRetried: true,
+                                });
+                            })
+                            .catch((retryError) => {
+                                const fallbackError = retryError === error
+                                    ? retryError
+                                    : new ResponseError(
+                                        retryError.message || error.message,
+                                        'axios_catch_error',
+                                        path,
+                                        response,
+                                    );
+                                throw fallbackError;
+                            });
+                    }
+                    console.warn(`[RequestAbility] network error ${requestUrl} ${error.message} ${error.code || 'no-code'}`);
                     throw new ResponseError(error.message, 'axios_catch_error', path, response);
                 }
             });
