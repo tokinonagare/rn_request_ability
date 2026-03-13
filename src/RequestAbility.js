@@ -60,6 +60,29 @@ export default class RequestAbility {
         return this._request('patch', { path, header, body, timeout });
     }
 
+    static _buildNetworkDebugInfo(error, axiosConfig, path, hasRetried) {
+        const { response, request } = error || {};
+        const requestUrl = `${axiosConfig.baseURL || ''}${path}`;
+        return {
+            requestUrl,
+            baseURL: axiosConfig.baseURL || '',
+            path,
+            method: axiosConfig.method,
+            timeout: axiosConfig.timeout,
+            message: error?.message,
+            code: error?.code || 'no-code',
+            status: response?.status,
+            responseURL: response?.request?.responseURL
+                || request?.responseURL
+                || request?._responseURL
+                || 'n/a',
+            readyState: request?.readyState,
+            hasResponse: Boolean(response),
+            hasRequest: Boolean(request),
+            retried: hasRetried,
+        };
+    }
+
     _request(method, {
         path,
         header,
@@ -96,9 +119,11 @@ export default class RequestAbility {
                 } else {
                     const { response } = error;
                     const requestUrl = `${axiosConfig.baseURL || ''}${path}`;
+                    const debugInfo = RequestAbility._buildNetworkDebugInfo(error, axiosConfig, path, hasRetried);
                     if (!hasRetried
                         && error.message === 'Network Error'
                         && typeof global.__LW_REFRESH_API_DOMAIN__ === 'function') {
+                        console.warn(`[RequestAbility] network error detail ${JSON.stringify(debugInfo)}`);
                         return global.__LW_REFRESH_API_DOMAIN__(this.apiDomain)
                             .then((nextApiDomain) => {
                                 if (!nextApiDomain || nextApiDomain === this.apiDomain) {
@@ -115,6 +140,16 @@ export default class RequestAbility {
                                 });
                             })
                             .catch((retryError) => {
+                                const retryDebugInfo = RequestAbility._buildNetworkDebugInfo(
+                                    retryError,
+                                    {
+                                        ...axiosConfig,
+                                        baseURL: this.apiDomain,
+                                    },
+                                    path,
+                                    true,
+                                );
+                                console.warn(`[RequestAbility] retry failed ${JSON.stringify(retryDebugInfo)}`);
                                 const fallbackError = retryError === error
                                     ? retryError
                                     : new ResponseError(
@@ -127,6 +162,7 @@ export default class RequestAbility {
                             });
                     }
                     console.warn(`[RequestAbility] network error ${requestUrl} ${error.message} ${error.code || 'no-code'}`);
+                    console.warn(`[RequestAbility] network error detail ${JSON.stringify(debugInfo)}`);
                     throw new ResponseError(error.message, 'axios_catch_error', path, response);
                 }
             });
