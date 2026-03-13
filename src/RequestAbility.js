@@ -10,6 +10,7 @@ import axios from 'axios';
 import ResponseError from './ResponseError';
 import parseResponseErrorMessage from './parseResponseErrorMessage';
 import parseResponseErrorType from './parseResponseErrorType';
+import { getNetworkFallbackResolver } from './NetworkFallbackResolver';
 export default class RequestAbility {
     static DEFAULT_TIMEOUT = 10000;
 
@@ -120,11 +121,11 @@ export default class RequestAbility {
                     const { response } = error;
                     const requestUrl = `${axiosConfig.baseURL || ''}${path}`;
                     const debugInfo = RequestAbility._buildNetworkDebugInfo(error, axiosConfig, path, hasRetried);
+                    const networkFallbackResolver = getNetworkFallbackResolver();
                     if (!hasRetried
-                        && error.message === 'Network Error'
-                        && typeof global.__LW_REFRESH_API_DOMAIN__ === 'function') {
+                        && error.message === 'Network Error') {
                         console.warn(`[RequestAbility] network error detail ${JSON.stringify(debugInfo)}`);
-                        return global.__LW_REFRESH_API_DOMAIN__(this.apiDomain)
+                        return networkFallbackResolver(this.apiDomain)
                             .then((nextApiDomain) => {
                                 if (!nextApiDomain || nextApiDomain === this.apiDomain) {
                                     throw error;

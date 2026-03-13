@@ -74,3 +74,7 @@ export declare class LoggerRequestAbility extends RequestAbility {
 export declare class ResponseError extends Error {
     constructor(message: string, type: string, path: string, response: AxiosResponse);
 }
+
+export declare function setNetworkFallbackResolver(
+    resolver?: (currentApiDomain: string) => Promise<string | undefined>,
+): void;
