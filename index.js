@@ -12,6 +12,7 @@ import DeserializeRequestAbility from './src/DeserializeRequestAbility';
 import LoggerRequestAbility from './src/LoggerRequestAbility';
 import RequestAbilityHeaderFactory from './src/RequestAbilityHeaderFactory';
 import ResponseError from './src/ResponseError';
+import { setNetworkFallbackResolver } from './src/NetworkFallbackResolver';
 
 export {
   RequestAbility,
@@ -19,4 +20,5 @@ export {
   LoggerRequestAbility,
   RequestAbilityHeaderFactory,
   ResponseError,
+  setNetworkFallbackResolver,
 };
